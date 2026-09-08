@@ -4,12 +4,12 @@ import CoreFoundation
 /// Darwin 通知：系统级跨进程通知（无需 App Group），扩展抓到新帧时唤醒主 App。
 /// CFNotificationCenter 回调不能捕获上下文，用 Unmanaged 指针把 self 传进去；
 /// 回调到达后经 Task 投递回 MainActor 执行 handler。
-/// 注意 iOS 上这些 CF 符号须经 Foundation 重导出才对 Swift 可见；悬挂投递行为
-/// 用 rawValue(4)=kCFNotificationSuspensionBehaviorDeliverSuspension，绕开枚举
-/// 成员名在各 SDK 版本间的差异。
+/// iOS 18 SDK 起 Darwin 中心 getter 对 Swift 不可见，经 DarwinBridge.h（ObjC）取得；
+/// 悬挂投递行为用 rawValue(4)=kCFNotificationSuspensionBehaviorDeliverSuspension，
+/// 绕开枚举成员名在各 SDK 版本间的差异。
 enum DarwinNotificationCenter {
     static func post(_ name: String) {
-        let center = CFNotificationCenterGetDarwinNotificationCenter()
+        let center = YiEyeDarwinNotificationCenter()
         CFNotificationCenterPostNotification(center, CFNotificationName(name as CFString), nil, nil, true)
     }
 
@@ -29,7 +29,7 @@ final class DarwinObserver {
         self.handler = handler
         self.opaque = Unmanaged.passRetained(self).toOpaque()
         CFNotificationCenterAddObserver(
-            CFNotificationCenterGetDarwinNotificationCenter(),
+            YiEyeDarwinNotificationCenter(),
             opaque,
             { _, observer, _, _, _ in
                 guard let observer else { return }
@@ -38,12 +38,12 @@ final class DarwinObserver {
             },
             name as CFString,
             nil,
-            CFNotificationSuspensionBehavior(rawValue: 4)
+            CFNotificationSuspensionBehavior(rawValue: 4)!
         )
     }
 
     deinit {
-        CFNotificationCenterRemoveEveryObserver(CFNotificationCenterGetDarwinNotificationCenter(), opaque)
+        CFNotificationCenterRemoveEveryObserver(YiEyeDarwinNotificationCenter(), opaque)
         Unmanaged.passUnretained(self).release()
     }
 }

@@ -48,6 +48,12 @@ jobs:
           plutil -lint YiEye.xcodeproj/project.pbxproj
           xcodebuild -list -project YiEye.xcodeproj
 
+      - name: Inspect ReplayKit SDK header (diagnostics)
+        run: |
+          SDK=$(xcrun --show-sdk-path)
+          grep -n -B1 -A2 "processSampleBuffer" "$SDK/System/Library/Frameworks/ReplayKit.framework/Headers/RPBroadcastSampleHandler.h" || true
+          grep -n "NS_SWIFT_NAME" "$SDK/System/Library/Frameworks/ReplayKit.framework/Headers/RPBroadcastSampleHandler.h" || true
+
       - name: Build for device (unsigned)
         run: |
           set -o pipefail

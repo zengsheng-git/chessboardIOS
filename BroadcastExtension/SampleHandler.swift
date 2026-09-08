@@ -33,7 +33,8 @@ class SampleHandler: RPBroadcastSampleHandler {
         FileLog.log("broadcastFinished, frames=\(frameNumber)")
     }
 
-    override func process(_ sampleBuffer: CMSampleBuffer, with sampleBufferType: RPSampleBufferType) {
+    // 方法名按 ObjC 选择器直译（processSampleBuffer:withType:）；此 SDK 版本无 NS_SWIFT_NAME 改名
+    override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, withType sampleBufferType: RPSampleBufferType) {
         guard sampleBufferType == .video else { return }
         autoreleasepool {
             let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds

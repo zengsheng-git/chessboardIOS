@@ -42,7 +42,11 @@ jobs:
         run: xcodegen generate
 
       - name: List schemes (diagnostics)
-        run: xcodebuild -list -project YiEye.xcodeproj
+        run: |
+          xcodebuild -version
+          grep -m1 -i objectVersion YiEye.xcodeproj/project.pbxproj || true
+          plutil -lint YiEye.xcodeproj/project.pbxproj
+          xcodebuild -list -project YiEye.xcodeproj
 
       - name: Build for device (unsigned)
         run: |

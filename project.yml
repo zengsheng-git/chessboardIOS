@@ -61,7 +61,6 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yieye.xiangqi
-        SWIFT_OBJC_BRIDGING_HEADER: Shared/YiEye-Bridging-Header.h
 
   BroadcastExtension:
     type: app-extension
@@ -83,7 +82,6 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yieye.xiangqi.broadcast
-        SWIFT_OBJC_BRIDGING_HEADER: Shared/YiEye-Bridging-Header.h
 
 schemes:
   YiEye:

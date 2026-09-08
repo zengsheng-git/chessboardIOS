@@ -1,18 +1,13 @@
+import Darwin
 import Foundation
-import CoreFoundation
 
 /// Darwin 通知：系统级跨进程通知（无需 App Group），扩展抓到新帧时唤醒主 App。
-/// CFNotificationCenter 回调不能捕获上下文，用 Unmanaged 指针把 self 传进去；
-/// 回调到达后经 Task 投递回 MainActor 执行 handler。
-/// iOS 18 SDK 起 Darwin 中心 getter 对 Swift 不可见，经 DarwinBridge.h（ObjC）取得；
-/// 悬挂投递行为用 rawValue(4)=kCFNotificationSuspensionBehaviorDeliverSuspension，
-/// 绕开枚举成员名在各 SDK 版本间的差异。
+/// iOS 上 CFNotificationCenterGetDarwinNotificationCenter（macOS 专属）不可用，
+/// 这里用公开的 <notify.h> API：notify_post / notify_register_dispatch。
+/// notify 的回调是可捕获上下文的 block，投递后经 Task 切回 MainActor 执行 handler。
 enum DarwinNotificationCenter {
-    // Darwin 中心是进程级单例（C 函数 +0 返回），取一次即可
-    fileprivate static let center = YiEyeDarwinNotificationCenter().takeUnretainedValue()
-
     static func post(_ name: String) {
-        CFNotificationCenterPostNotification(center, CFNotificationName(name as CFString), nil, nil, true)
+        notify_post(name)
     }
 
     static func addObserver(name: String, handler: @escaping @MainActor () -> Void) -> DarwinObserver {
@@ -20,32 +15,24 @@ enum DarwinNotificationCenter {
     }
 }
 
-/// 一次观察的句柄；deinit 时自动移除观察并释放 Unmanaged 引用。
+/// 一次观察的句柄；deinit 时 notify_cancel 注销。
 final class DarwinObserver {
-    private let name: String
-    private let handler: @MainActor () -> Void
-    private var opaque: UnsafeMutableRawPointer!
+    private static let deliveryQueue = DispatchQueue(label: "com.yieye.darwin", qos: .userInitiated)
+    private var token: Int32 = 0
 
     fileprivate init(name: String, handler: @escaping @MainActor () -> Void) {
-        self.name = name
-        self.handler = handler
-        self.opaque = Unmanaged.passRetained(self).toOpaque()
-        CFNotificationCenterAddObserver(
-            DarwinNotificationCenter.center,
-            opaque,
-            { _, observer, _, _, _ in
-                guard let observer else { return }
-                let obs = Unmanaged<DarwinObserver>.fromOpaque(observer).takeUnretainedValue()
-                Task { @MainActor in obs.handler() }
-            },
-            name as CFString,
-            nil,
-            CFNotificationSuspensionBehavior(rawValue: 4)!
-        )
+        var token: Int32 = 0
+        let status = notify_register_dispatch(name, &token, Self.deliveryQueue) { _ in
+            Task { @MainActor in handler() }
+        }
+        if status == NOTIFY_STATUS_OK {
+            self.token = token
+        } else {
+            FileLog.log("notify_register_dispatch 失败 status=\(status)")
+        }
     }
 
     deinit {
-        CFNotificationCenterRemoveEveryObserver(DarwinNotificationCenter.center, opaque)
-        Unmanaged.passUnretained(self).release()
+        if token != 0 { notify_cancel(token) }
     }
 }

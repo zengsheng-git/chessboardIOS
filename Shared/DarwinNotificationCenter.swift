@@ -8,8 +8,10 @@ import CoreFoundation
 /// 悬挂投递行为用 rawValue(4)=kCFNotificationSuspensionBehaviorDeliverSuspension，
 /// 绕开枚举成员名在各 SDK 版本间的差异。
 enum DarwinNotificationCenter {
+    // Darwin 中心是进程级单例（C 函数 +0 返回），取一次即可
+    private static let center = YiEyeDarwinNotificationCenter().takeUnretainedValue()
+
     static func post(_ name: String) {
-        let center = YiEyeDarwinNotificationCenter()
         CFNotificationCenterPostNotification(center, CFNotificationName(name as CFString), nil, nil, true)
     }
 
@@ -29,7 +31,7 @@ final class DarwinObserver {
         self.handler = handler
         self.opaque = Unmanaged.passRetained(self).toOpaque()
         CFNotificationCenterAddObserver(
-            YiEyeDarwinNotificationCenter(),
+            DarwinNotificationCenter.center,
             opaque,
             { _, observer, _, _, _ in
                 guard let observer else { return }
@@ -43,7 +45,7 @@ final class DarwinObserver {
     }
 
     deinit {
-        CFNotificationCenterRemoveEveryObserver(YiEyeDarwinNotificationCenter(), opaque)
+        CFNotificationCenterRemoveEveryObserver(DarwinNotificationCenter.center, opaque)
         Unmanaged.passUnretained(self).release()
     }
 }

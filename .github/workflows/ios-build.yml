@@ -26,7 +26,7 @@ on:
 jobs:
   build:
     name: Build unsigned IPA (macOS)
-    runs-on: macos-14
+    runs-on: macos-15   # XcodeGen 现行版本写 objectVersion 77（Xcode 16 工程格式），需要 Xcode 16 才能读
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4

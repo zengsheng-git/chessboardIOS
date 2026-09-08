@@ -13,8 +13,8 @@ options:
   deploymentTarget:
     iOS: "16.0"
   createIntermediateGroups: true
-  # 钉住工程格式版本：新版 XcodeGen 默认写 objectVersion 77（Xcode 16 格式），
-  # CI runner 的 Xcode 15.4 读不了"未来格式"会报 Unable to read project
+  # 工程格式版本：现行 XcodeGen 写 objectVersion 77（Xcode 16 格式），
+  # 构建机需用 Xcode 16+（CI 已用 macos-15 runner）
   objectVersion: 56
 
 settings:

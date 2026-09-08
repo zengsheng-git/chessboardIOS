@@ -1,0 +1,86 @@
+# 弈眼 iOS 云构建流水线（无 Mac 构建链路）
+#
+# 产物：未签名的 YiEye-unsigned.ipa（artifact 下载后，Windows 端用 Sideloadly
+# 以用户自己的 Apple ID 重签安装，见 docs/ios-setup-guide.md）。
+#
+# 关键点：
+#   1. XcodeGen 从 project.yml 生成 YiEye.xcodeproj（工程不落仓库）；
+#   2. CODE_SIGNING_ALLOWED=NO 免签名出包（无需证书/开发者账号）；
+#   3. 构建后用 ad-hoc codesign 把 entitlements（App Group）写进二进制——
+#      完全 unsigned 的包经 Sideloadly 重签时会丢授权，导致扩展取不到共享容器；
+#   4. CoreLogic 的 swift test 在同一 runner 先行（后续 M3 移到 Linux 免费额度）。
+#
+# M4/M5 接入模型与 NNUE 时，在此 job 增加安卓仓库的二次检出：
+#   - uses: actions/checkout@v4
+#     with:
+#       repository: zengsheng-git/chessboardAndroid
+#       path: android
+# 然后运行 scripts/fetch-assets.sh（默认从 ../android/app/src/main/assets 取资产）。
+name: ios-build
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build unsigned IPA (macOS)
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Unit tests (CoreLogic)
+        working-directory: CoreLogic
+        run: swift test
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build for device (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project YiEye.xcodeproj \
+            -scheme YiEye \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tee build.log | tail -60
+
+      - name: Ad-hoc sign with entitlements (preserve App Group for Sideloadly)
+        run: |
+          APP="build/Build/Products/Release-iphoneos/YiEye.app"
+          codesign --force --sign - \
+            --entitlements BroadcastExtension/BroadcastExtension.entitlements \
+            "$APP/PlugIns/BroadcastExtension.appex"
+          codesign --force --sign - \
+            --entitlements YiEye/YiEye.entitlements \
+            "$APP"
+          codesign -d --entitlements :- "$APP" | head -5
+
+      - name: Package IPA
+        run: |
+          cd build/Build/Products/Release-iphoneos
+          mkdir Payload
+          cp -R YiEye.app Payload/
+          zip -qry "$GITHUB_WORKSPACE/YiEye-unsigned.ipa" Payload
+          ls -lh "$GITHUB_WORKSPACE/YiEye-unsigned.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: YiEye-unsigned-ipa
+          path: YiEye-unsigned.ipa
+
+      - name: Upload build log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: build.log

@@ -1,0 +1,91 @@
+# 弈眼 iOS 工程（XcodeGen 描述文件）
+# 本地无需安装 Xcode：CI（GitHub Actions macos runner）上执行 `xcodegen generate` 生成 YiEye.xcodeproj。
+# 说明：
+#   - 主 App（YiEye）+ 广播抓帧扩展（BroadcastExtension）两个 target；
+#   - 两者通过 App Group 容器交换截屏帧（Shared/ 目录的契约代码两边各编一份）；
+#   - CoreLogic 是本地 Swift Package（纯逻辑层，M3 起移植 FEN/记谱/状态机，Linux/macOS 均可 swift test）；
+#   - 构建采用免签名（Sideloadly 在 Windows 端用用户自己的 Apple ID 重签），CI 里用 ad-hoc
+#     codesign 把 entitlements 写进二进制签名，保证 Sideloadly 重签时保留 App Group 授权。
+name: YiEye
+
+options:
+  bundleIdPrefix: com.yieye
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"   # iPhone 为主，iPad 走 Slide Over 路线
+
+packages:
+  CoreLogic:
+    path: CoreLogic
+
+targets:
+  YiEye:
+    type: application
+    platform: iOS
+    sources:
+      - path: YiEye
+      - path: Shared
+    dependencies:
+      - target: BroadcastExtension
+      - package: CoreLogic
+        product: CoreLogic
+    entitlements:
+      path: YiEye/YiEye.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.yieye.xiangqi]
+    info:
+      path: YiEye/Info.plist
+      properties:
+        CFBundleDisplayName: 弈眼
+        UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # 云库 chessdb.cn 是 http，按域放行明文（对齐 Android 版的云库接入）
+        NSAppTransportSecurity:
+          NSExceptionDomains:
+            www.chessdb.cn:
+              NSExceptionAllowsInsecureHTTPLoads: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yieye.xiangqi
+
+  BroadcastExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: BroadcastExtension
+      - path: Shared
+    entitlements:
+      path: BroadcastExtension/BroadcastExtension.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.yieye.xiangqi]
+    info:
+      path: BroadcastExtension/Info.plist
+      properties:
+        CFBundleDisplayName: 弈眼
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yieye.xiangqi.broadcast
+
+schemes:
+  YiEye:
+    build:
+      targets:
+        YiEye: all
+    run:
+      config: Debug
+    archive:
+      config: Release

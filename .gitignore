@@ -1,0 +1,9 @@
+# 构建产物（.xcodeproj 由 XcodeGen 从 project.yml 生成，不入库）
+*.xcodeproj
+build/
+DerivedData/
+Assets/
+*.ipa
+Payload/
+*.xcresult
+.DS_Store

@@ -26,6 +26,7 @@ class SampleHandler: RPBroadcastSampleHandler {
             finishBroadcastWithError(NSError(
                 domain: "com.yieye.xiangqi", code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "App Group 容器不可用：请用同一 Apple ID 签名安装主 App 与扩展"]))
+            return
         }
     }
 

@@ -24,7 +24,7 @@ enum DarwinNotificationCenter {
 final class DarwinObserver {
     private let name: String
     private let handler: @MainActor () -> Void
-    private let opaque: UnsafeMutableRawPointer
+    private var opaque: UnsafeMutableRawPointer!
 
     fileprivate init(name: String, handler: @escaping @MainActor () -> Void) {
         self.name = name

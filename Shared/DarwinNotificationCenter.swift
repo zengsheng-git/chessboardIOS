@@ -9,7 +9,7 @@ import CoreFoundation
 /// 绕开枚举成员名在各 SDK 版本间的差异。
 enum DarwinNotificationCenter {
     // Darwin 中心是进程级单例（C 函数 +0 返回），取一次即可
-    private static let center = YiEyeDarwinNotificationCenter().takeUnretainedValue()
+    fileprivate static let center = YiEyeDarwinNotificationCenter().takeUnretainedValue()
 
     static func post(_ name: String) {
         CFNotificationCenterPostNotification(center, CFNotificationName(name as CFString), nil, nil, true)

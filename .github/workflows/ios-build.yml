@@ -41,6 +41,9 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: List schemes (diagnostics)
+        run: xcodebuild -list -project YiEye.xcodeproj
+
       - name: Build for device (unsigned)
         run: |
           set -o pipefail
@@ -51,7 +54,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            | tee build.log | tail -60
+            2>&1 | tee build.log | tail -80
 
       - name: Ad-hoc sign with entitlements (preserve App Group for Sideloadly)
         run: |

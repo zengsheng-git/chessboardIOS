@@ -33,7 +33,7 @@ final class AppState: ObservableObject {
         }
 
         observer = DarwinNotificationCenter.addObserver(
-            name: FrameContract.darwinNotification, queue: .main) { [weak self] in
+            name: FrameContract.darwinNotification) { [weak self] in
             self?.pollFrame()
         }
         // 兜底轮询：Darwin 通知偶发丢失时不至于界面死等
